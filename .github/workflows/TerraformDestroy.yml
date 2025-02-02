@@ -35,4 +35,4 @@ jobs:
         run: terraform plan -destroy -no-color -input=false -out destroy-planfile
 
       - name: Terraform destroy
-        run: terraform apply -auto-approve -input=false destroy-planfile
+        run: terraform destroy -auto-approved
