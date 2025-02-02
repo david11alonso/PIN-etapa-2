@@ -1,36 +1,61 @@
-name: Terraform Apply
+name: "Terraform Apply"
+## Define donde se va a correr, en este caso si existe algun cambio en terraform, corre el codigo
+on:
+  push:
+    branches:
+      - main
+    paths:  
+      - terraform/**
+  pull_request:
+    branches:
+      - main
+    paths:
+      - terraform/**
 
-on: [push]
+env:
+ # Credenciales AWS
+ AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+ AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+ # S3 para guardar el estado de terraform
+ BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE}}
+ AWS_REGION: us-east-2
+ EKS_CLUSTER: vprofile-eks
 
 jobs:
-  terraform_apply:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v1
+   terraform:
+     ## Donde se va a correr el terraform
+     name: "Apply terraform code changes"
+     runs-on: ubuntu-latest
+     defaults:
+       run:
+         shell: bash
+         working-directory: ./terraform
 
-    - name: Install Terraform
-      env:
-        TERRAFORM_VERSION: "0.12.15"
-      run: |
-        tf_version=$TERRAFORM_VERSION
-        wget https://releases.hashicorp.com/terraform/"$tf_version"/terraform_"$tf_version"_linux_amd64.zip
-        unzip terraform_"$tf_version"_linux_amd64.zip
-        sudo mv terraform /usr/local/bin/
-
-    - name: Verify Terraform version
-      run: terraform --version
-
-    - name: Terraform init
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: terraform init -input=false
-
-    - name: Terraform validation
-      run: terraform validate
-
-    - name: Terraform apply
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      run: terraform apply -auto-approve -input=false
+     steps:
+         ## Descarga el codigo
+       - name: Checkout source code 
+         uses: actions/checkout@v4
+         ## Instala  terraform
+       - name: Setup Terraform with specified version on the runner
+         uses: hashicorp/setup-terraform@v2
+         ## Inicia terraform
+       - name: Terraform init
+         id: init
+         run: terraform init -backend-config="bucket=$BUCKET_TF_STATE"
+         ## Da formato al codigo
+       - name: Terraform format
+         id: fmt
+         run: terraform fmt -check
+         ## Valida el codigo
+       - name: Terraform validate
+         id: validate
+         run: terraform validate
+         ## Realiza el plan de como se va a correr el codigo
+       - name: Terraform plan
+         id: plan
+         run: terraform plan -no-color -input=false -out planfile
+         continue-on-error: true
+         ## Falla si hay algun error en el codigo
+       - name: Terraform plan status
+         if: steps.plan.outcome == 'failure' 
+         run: exit 1     
