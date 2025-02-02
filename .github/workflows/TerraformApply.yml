@@ -18,8 +18,8 @@ env:
  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
  # S3 para guardar el estado de terraform
  BUCKET_TF_STATE: ${{ secrets.BUCKET_TF_STATE}}
- AWS_REGION: us-east-2
- EKS_CLUSTER: vprofile-eks
+ AWS_REGION: us-east-1
+
 
 jobs:
    terraform:
@@ -58,4 +58,8 @@ jobs:
          ## Falla si hay algun error en el codigo
        - name: Terraform plan status
          if: steps.plan.outcome == 'failure' 
-         run: exit 1     
+         run: exit 1
+         ## Aplica cambios
+       - name: Terraform apply
+        if: steps.plan.outcome == 'failure' 
+        run: terraform apply -auto-approve -input=false -parallelism=1 planfile   
