@@ -1,5 +1,5 @@
 name: "Terraform Destroy"
-
+# Se corre manual
 on:
   workflow_dispatch:
 
@@ -12,6 +12,7 @@ env:
   AWS_REGION: us-east-1
 
 jobs:
+# Instala terraform, crea un plan y elimina la implementacion
   terraform-destroy:
     name: "Destroy Terraform Infrastructure"
     runs-on: ubuntu-latest
